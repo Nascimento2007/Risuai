@@ -1,7 +1,4 @@
 {
-    "engines": {
-    "node": "20.x"
-  },
   "name": "risuai",
   "private": true,
   "version": "1.0.0",
