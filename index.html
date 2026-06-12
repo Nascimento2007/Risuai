@@ -11,7 +11,6 @@
     <meta name="description" content="An AI frontend for both light and core users.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://fonts.googleapis.com/css2?family=Tilt+Prism&family=Yellowtail&display=swap" rel="stylesheet">
-    <!-- <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; object-src 'none'; require-trusted-types-for 'script'; trusted-types plugin-policy;"> -->
     <title>Risuai</title>
     <style>
 /* ==========================================
@@ -19,16 +18,16 @@
    Otimizado para RP e Teclado Mobile
    ========================================== */
 
-/* 1. Fundação: Ocupa a tela inteira sem quebrar o scroll do Android */
+/* 1. Fundação */
 html, body {
-  height: 100dvh !important; /* dvh se adapta quando o teclado sobe */
+  height: 100dvh !important;
   width: 100vw !important;
   margin: 0 !important;
   padding: 0 !important;
-  overscroll-behavior: none !important; /* Impede o "puxar pra atualizar" do navegador */
+  overscroll-behavior: none !important;
 }
 
-/* 2. Container Principal: Transforma o app em uma coluna elástica */
+/* 2. Container Principal */
 #app, #root, body > div:first-child {
   height: 100dvh !important;
   width: 100vw !important;
@@ -38,56 +37,51 @@ html, body {
   overflow: hidden !important;
 }
 
-/* 3. A Área do Chat (O mais importante pro RP) */
-/* Garante que o histórico do chat role suavemente e ocupe o espaço livre */
+/* 3. Área do Chat */
 div[class*="chat"], div[class*="messages"], main, section {
   flex: 1 1 auto !important;
-  overflow-y: auto !important; /* Permite rolar pro baixo nas mensagens antigas */
+  overflow-y: auto !important;
   overflow-x: hidden !important;
-  -webkit-overflow-scrolling: touch !important; /* Rolagem suave no Android */
+  -webkit-overflow-scrolling: touch !important;
   padding-bottom: 15px !important;
 }
 
-/* 4. A Área de Input (Onde você digita) */
-/* Garante que o input fique sempre colado embaixo e não suma atrás do teclado */
+/* 4. Área de Input */
 div[class*="input"], div[class*="textarea"], form {
   flex-shrink: 0 !important;
   width: 100% !important;
   max-width: 100vw !important;
   position: relative !important;
   z-index: 50 !important;
-  background-color: var(--background-color, #1a1a1a) !important; /* Evita texto transparente no teclado */
+  background-color: var(--background-color, #1a1a1a) !important;
 }
 
 textarea {
   width: 100% !important;
   box-sizing: border-box !important;
-  resize: none !important; /* Impede de redimensionar e quebrar a tela */
+  resize: none !important;
 }
 
-/* 5. Segurança Global: Impede estouro horizontal, SEM estragar pop-ups */
+/* 5. Segurança Global */
 * {
   max-width: 100vw !important;
   box-sizing: border-box !important;
 }
 
-/* 6. Quebra de Texto no RP: Perfeito para respostas longas da IA */
-/* (Ataca apenas tags de texto, para não quebrar botões e ícones) */
+/* 6. Quebra de Texto no RP */
 p, span, li, blockquote, pre, code {
   word-break: break-word !important;
   overflow-wrap: break-word !important;
-  white-space: pre-wrap !important; /* Respeita os espaços e parágrafos da IA */
+  white-space: pre-wrap !important;
 }
 
-/* 7. Aproveitando a tela gigante do Redmagic: Margem nas mensagens */
-/* Deixa o texto mais confortável de ler sem colar nas bordas curvas do celular */
+/* 7. Margem nas mensagens */
 div[class*="message"], .prose {
   padding-left: 12px !important;
   padding-right: 12px !important;
 }
 
-/* 8. Correção dos Pop-ups do RisuAI (Configurações, etc) */
-/* Evita que as janelas de configuração fiquem grandes demais e saiam da tela */
+/* 8. Correção dos Pop-ups */
 [role="dialog"], div[class*="modal"], div[class*="popup"] {
   max-height: 90dvh !important;
   max-width: 95vw !important;
@@ -106,7 +100,8 @@ div[class*="message"], .prose {
         </div>
       </noscript>
     </div>
-    <!-- Loading screen, will be removed when /src/main.ts is loaded -->
+
+    <!-- Loading screen -->
     <div id="preloading" class="w-full h-full flex justify-center items-center text-textcolor text-xl bg-gray-900 flex-col absolute top-0 left-0 z-50">
       <div class="flex flex-row items-center">
           <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-textcolor" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -117,8 +112,13 @@ div[class*="message"], .prose {
       </div>
       <span class="text-sm mt-2 text-textcolor2">Loading Risuai...</span>
     </div>
+
     <script type="module" src="/src/main.ts"></script>
+
     <script>
+// ============================================================
+// FUNÇÕES DE BUSCA E SCRAPING
+// ============================================================
 async function search(query, resultSize) {
   try {
     var encoded = encodeURIComponent(query);
@@ -126,97 +126,191 @@ async function search(query, resultSize) {
     var res = await fetch(proxyUrl, { headers: { "Accept": "text/html" } });
     if (!res.ok) return { items: [], query: query, total: 0 };
     var html = await res.text();
-    var items = []; var seenUrls = {};
-    var decodeEntities = function(str) { return str.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'").replace(/&#x2F;/g, "/").replace(/&nbsp;/g, " "); };
-    var clean = function(str) { return decodeEntities(str).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(); };
+    var items = [];
+    var seenUrls = {};
+
+    var decodeEntities = function(str) {
+      return str
+        .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'")
+        .replace(/&#x2F;/g, "/").replace(/&nbsp;/g, " ");
+    };
+
+    var clean = function(str) {
+      return decodeEntities(str).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    };
+
     var queryTerms = query.toLowerCase().split(/\s+/).filter(function(t) { return t.length > 2; });
-    var scoreItem = function(title, snippet, url) { var t = title.toLowerCase(); var s = snippet.toLowerCase(); var u = url.toLowerCase(); var score = 0; for (var i = 0; i < queryTerms.length; i++) { var term = queryTerms[i]; if (t.indexOf(term) !== -1) score += 3; if (s.indexOf(term) !== -1) score += 2; if (u.indexOf(term) !== -1) score += 1; } return score; };
-    var addItem = function(rawUrl, rawTitle, rawSnippet) { var title = clean(rawTitle); var snippet = clean(rawSnippet); if (rawUrl.indexOf("http") === 0 && title.length > 0 && !seenUrls[rawUrl]) { seenUrls[rawUrl] = true; items.push({ title: title, url: rawUrl, text: snippet, _score: scoreItem(title, snippet, rawUrl) }); } };
-    var p1 = /class="result__a"[^>]*href="[^"]*uddg=([^"& ]+)[^"]*"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g; var m;
-    while ((m = p1.exec(html)) !== null) { var decoded = ""; try { decoded = decodeURIComponent(m[1]); } catch(e) { decoded = m[1]; } addItem(decoded, m[2], m[3]); }
-    if (items.length < resultSize) { var p2 = /class="result__a"[^>]*href="(https?:\/\/(?!duckduckgo\.com)[^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g; while ((m = p2.exec(html)) !== null) addItem(decodeEntities(m[1]), m[2], m[3]); }
+
+    var scoreItem = function(title, snippet, url) {
+      var t = title.toLowerCase(); var s = snippet.toLowerCase(); var u = url.toLowerCase();
+      var score = 0;
+      for (var i = 0; i < queryTerms.length; i++) {
+        var term = queryTerms[i];
+        if (t.indexOf(term) !== -1) score += 3;
+        if (s.indexOf(term) !== -1) score += 2;
+        if (u.indexOf(term) !== -1) score += 1;
+      }
+      return score;
+    };
+
+    var addItem = function(rawUrl, rawTitle, rawSnippet) {
+      var title = clean(rawTitle);
+      var snippet = clean(rawSnippet);
+      if (rawUrl.indexOf("http") === 0 && title.length > 0 && !seenUrls[rawUrl]) {
+        seenUrls[rawUrl] = true;
+        items.push({ title: title, url: rawUrl, text: snippet, _score: scoreItem(title, snippet, rawUrl) });
+      }
+    };
+
+    var p1 = /class="result__a"[^>]*href="[^"]*uddg=([^"& ]+)[^"]*"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+    var m;
+    while ((m = p1.exec(html)) !== null) {
+      var decoded = "";
+      try { decoded = decodeURIComponent(m[1]); } catch(e) { decoded = m[1]; }
+      addItem(decoded, m[2], m[3]);
+    }
+
+    if (items.length < resultSize) {
+      var p2 = /class="result__a"[^>]*href="(https?:\/\/(?!duckduckgo\.com)[^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+      while ((m = p2.exec(html)) !== null) addItem(decodeEntities(m[1]), m[2], m[3]);
+    }
+
     items.sort(function(a, b) { return b._score - a._score; });
-    var output = items.slice(0, resultSize).map(function(item) { return { title: item.title, url: item.url, text: item.text }; });
+    var output = items.slice(0, resultSize).map(function(item) {
+      return { title: item.title, url: item.url, text: item.text };
+    });
     return { items: output, query: query, total: output.length };
-  } catch(e) { return { items: [], query: query, total: 0, error: e.message }; }
+  } catch(e) {
+    return { items: [], query: query, total: 0, error: e.message };
+  }
 }
 
 async function scrape(urls) {
-  return { urls: await Promise.all(urls.map(async function(url) { try { var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); var res = await fetch(proxyUrl, { headers: { "Accept": "text/html" } }); if (!res.ok) return { url: url, content: "" }; var html = await res.text(); var stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<nav[\s\S]*?<\/nav>/gi, "").replace(/<footer[\s\S]*?<\/footer>/gi, "").replace(/<header[\s\S]*?<\/header>/gi, "").replace(/<aside[\s\S]*?<\/aside>/gi, "").replace(/<form[\s\S]*?<\/form>/gi, "").replace(/<iframe[\s\S]*?<\/iframe>/gi, "").replace(/<!--[\s\S]*?-->/g, ""); var getTag = function(src, tag) { var re = new RegExp("<" + tag + "[\\s>][\\s\\S]*?<\\/" + tag + ">", "i"); var m = src.match(re); return m ? m[0] : null; }; var mainContent = getTag(stripped, "article") || getTag(stripped, "main") || getTag(stripped, "section") || stripped; var text = mainContent.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/li>/gi, "\n").replace(/<\/h[1-6]>/gi, "\n\n").replace(/<\/div>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'").replace(/&nbsp;/g, " ").replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n").replace(/\n{3,}/g, "\n\n").trim(); var LIMIT = 2000; var content = text; if (text.length > LIMIT) { var chunk = text.substring(0, LIMIT); var cut = Math.max(chunk.lastIndexOf(". "), chunk.lastIndexOf(".\n"), chunk.lastIndexOf("! "), chunk.lastIndexOf("? ")); content = (cut > LIMIT * 0.6 ? chunk.substring(0, cut + 1) : chunk) + " [...]"; } return { url: url, content: content }; } catch(e) { return { url: url, content: "", error: e.message }; } })) };
+  var results = await Promise.all(urls.map(async function(url) {
+    try {
+      var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+      var res = await fetch(proxyUrl, { headers: { "Accept": "text/html" } });
+      if (!res.ok) return { url: url, content: "" };
+      var html = await res.text();
+      var stripped = html
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+        .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+        .replace(/<header[\s\S]*?<\/header>/gi, "")
+        .replace(/<aside[\s\S]*?<\/aside>/gi, "")
+        .replace(/<form[\s\S]*?<\/form>/gi, "")
+        .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+        .replace(/<!--[\s\S]*?-->/g, "");
+
+      var getTag = function(src, tag) {
+        var re = new RegExp("<" + tag + "[\\s>][\\s\\S]*?<\\/" + tag + ">", "i");
+        var m = src.match(re);
+        return m ? m[0] : null;
+      };
+
+      var mainContent = getTag(stripped, "article") || getTag(stripped, "main") || getTag(stripped, "section") || stripped;
+      var text = mainContent
+        .replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/li>/gi, "\n")
+        .replace(/<\/h[1-6]>/gi, "\n\n").replace(/<\/div>/gi, "\n").replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'")
+        .replace(/&nbsp;/g, " ").replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n")
+        .replace(/\n{3,}/g, "\n\n").trim();
+
+      var LIMIT = 2000;
+      var content = text;
+      if (text.length > LIMIT) {
+        var chunk = text.substring(0, LIMIT);
+        var cut = Math.max(chunk.lastIndexOf(". "), chunk.lastIndexOf(".\n"), chunk.lastIndexOf("! "), chunk.lastIndexOf("? "));
+        content = (cut > LIMIT * 0.6 ? chunk.substring(0, cut + 1) : chunk) + " [...]";
+      }
+      return { url: url, content: content };
+    } catch(e) {
+      return { url: url, content: "", error: e.message };
+    }
+  }));
+  // Retorna objeto com array 'urls' para manter compatibilidade
+  return { urls: results };
 }
 
-// ==========================================================
-// SISTEMA DE BUSCA CONSTANTE E AUTOMÁTICA (GOD MODE)
-// ==========================================================
+// ============================================================
+// SISTEMA DE BUSCA AUTOMÁTICA (GOD MODE)
+// ============================================================
 window.addEventListener('load', function() {
-    let isAutoSearching = false;
+  var isAutoSearching = false;
 
-    // Cria o aviso visual
-    let toast = document.createElement('div');
-    toast.id = 'search-toast';
-    toast.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(124, 58, 237, 0.95); color:white; padding:12px 25px; border-radius:30px; z-index:999999; font-size:15px; display:none; box-shadow: 0 4px 15px rgba(0,0,0,0.4); transition: all 0.3s;';
-    document.body.appendChild(toast);
+  // Aviso visual na tela
+  var toast = document.createElement('div');
+  toast.id = 'search-toast';
+  toast.style.cssText = [
+    'position:fixed', 'top:20px', 'left:50%', 'transform:translateX(-50%)',
+    'background:rgba(124,58,237,0.95)', 'color:white', 'padding:12px 25px',
+    'border-radius:30px', 'z-index:999999', 'font-size:15px', 'display:none',
+    'box-shadow:0 4px 15px rgba(0,0,0,0.4)', 'transition:all 0.3s'
+  ].join(';');
+  document.body.appendChild(toast);
 
-    // Função que intercepta o envio de mensagens
-    async function interceptSend(e) {
-        if (isAutoSearching) return;
+  async function interceptSend(e) {
+    if (isAutoSearching) return;
 
-        // Acha a caixa de texto do RisuAI
-        let input = document.querySelector('textarea');
-        if (!input) return;
+    var input = document.querySelector('textarea');
+    if (!input) return;
 
-        let userMessage = input.value.trim();
-        
-        // Ignora se estiver vazio ou se for comando do sistema
-        if (userMessage.length < 3 || userMessage.startsWith('[')) return;
+    var userMessage = input.value.trim();
 
-        // Bloqueia o envio normal pra buscar primeiro
-        e.preventDefault();
-        e.stopPropagation();
-        isAutoSearching = true;
+    // Ignora mensagens curtas ou comandos de sistema
+    if (userMessage.length < 3 || userMessage.startsWith('[')) return;
 
-        // Mostra o aviso na tela
-        toast.innerHTML = `🌐 <b>Buscando contexto na web...</b>`;
-        toast.style.display = 'block';
+    e.preventDefault();
+    e.stopPropagation();
+    isAutoSearching = true;
 
-        // Faz a busca baseada na mensagem do usuário
-        let searchResult = await search(userMessage, 1); // Busca 1 site pra ser rápido
-        let webContext = "";
+    toast.innerHTML = '🌐 <b>Buscando contexto na web...</b>';
+    toast.style.display = 'block';
 
-        if (searchResult.items.length > 0) {
-            let urlsToScrape = searchResult.items.map(i => i.url);
-            let scrapedData = await scrape(urlsToScrape);
-            webContext = `\n\n[Contexto da Web em tempo real que o sistema buscou para você. Use isso para responder com precisão, mas não mencione que buscou]:\n`;
-            scrapedData.forEach((data) => {
-                if(data.content) webContext += `${data.content}\n`;
-            });
-        }
+    var webContext = "";
+    try {
+      var searchResult = await search(userMessage, 1);
 
-        // Esconde o aviso
-        toast.style.display = 'none';
+      if (searchResult.items.length > 0) {
+        var urlsToScrape = searchResult.items.map(function(i) { return i.url; });
+        var scrapedData = await scrape(urlsToScrape);
 
-        // Injeta o contexto na mensagem e envia pro bot
-        input.value = userMessage + webContext;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
+        webContext = "\n\n[Contexto da Web em tempo real que o sistema buscou para você. Use isso para responder com precisão, mas não mencione que buscou]:\n";
 
-        // Solta o bloqueio e clica em enviar
-        isAutoSearching = false;
-        
-        setTimeout(() => {
-            let sendBtn = document.querySelector('button[class*="send"], button[aria-label="Send"]');
-            if (sendBtn) sendBtn.click();
-        }, 200);
+        // CORRIGIDO: scrapedData.urls (não scrapedData diretamente)
+        scrapedData.urls.forEach(function(data) {
+          if (data.content) webContext += data.content + "\n";
+        });
+      }
+    } catch(err) {
+      // Se a busca falhar, envia a mensagem normalmente sem contexto
+      console.warn('[GodMode] Busca falhou:', err);
     }
 
-    // Fica vigiando a caixa de texto o tempo todo
-    setInterval(() => {
-        let input = document.querySelector('textarea');
-        if (input && !input.dataset.godModeActive) {
-            input.dataset.godModeActive = 'true';
-            // Intercepta quando apertar Enter ou clicar no botão de enviar
-            input.addEventListener('keydown', interceptSend, true);
-        }
-    }, 500);
+    toast.style.display = 'none';
+
+    input.value = userMessage + webContext;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    isAutoSearching = false;
+
+    setTimeout(function() {
+      var sendBtn = document.querySelector('button[class*="send"], button[aria-label="Send"]');
+      if (sendBtn) sendBtn.click();
+    }, 200);
+  }
+
+  // Monitora o textarea e adiciona o listener quando ele aparecer
+  setInterval(function() {
+    var input = document.querySelector('textarea');
+    if (input && !input.dataset.godModeActive) {
+      input.dataset.godModeActive = 'true';
+      input.addEventListener('keydown', interceptSend, true);
+    }
+  }, 500);
 });
     </script>
   </body>
